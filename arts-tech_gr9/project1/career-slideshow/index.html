@@ -3,22 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PowerPoint Viewer</title>
+  <title>PDF Slideshow Viewer</title>
   <link rel="stylesheet" href="style.css">
   
-  <!-- JSZip dependency to unpack the PPTX file -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- PDF.js Library from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
 
-  <!-- Full-bleed Slide Display Container -->
+  <!-- Slide Display Viewport -->
   <main class="viewer-container">
     <div id="slide-stage" class="slide-stage">
-      <div class="status-msg">Loading presentation...</div>
+      <canvas id="pdf-canvas"></canvas>
+      <div id="loading-msg" class="status-msg">Loading presentation...</div>
     </div>
   </main>
 
-  <!-- Sticky Footer Controls -->
+  <!-- Sticky Footer Control Bar -->
   <footer class="footer-bar">
     <div class="controls">
       <button id="prev-btn" class="nav-btn" disabled>&larr; Previous</button>
