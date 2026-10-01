@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   // CONFIGURATION: Set your local PDF file path here
-  const PDF_FILE_PATH = "presentation.pdf";
+  const PDF_FILE_PATH = "slideshow.pdf";
 
   // Configure PDF.js worker location
   pdfjsLib.GlobalWorkerOptions.workerSrc =
