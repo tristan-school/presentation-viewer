@@ -1,8 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
-  // CONFIGURATION: Set your local PDF file path here
   const PDF_FILE_PATH = "presentation.pdf";
 
-  // Configure PDF.js worker location
   pdfjsLib.GlobalWorkerOptions.workerSrc =
     "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
@@ -13,22 +11,23 @@ document.addEventListener("DOMContentLoaded", () => {
   const currentSlideEl = document.getElementById("current-slide");
   const totalSlidesEl = document.getElementById("total-slides");
 
-  // Create two canvases for seamless double-buffering
-  let activeCanvas = document.createElement("canvas");
-  let offscreenCanvas = document.createElement("canvas");
+  const canvasA = document.createElement("canvas");
+  const canvasB = document.createElement("canvas");
 
-  activeCanvas.id = "pdf-canvas";
-  offscreenCanvas.style.display = "none";
+  canvasA.className = "slide-canvas active";
+  canvasB.className = "slide-canvas";
 
-  stage.appendChild(activeCanvas);
-  stage.appendChild(offscreenCanvas);
+  stage.appendChild(canvasA);
+  stage.appendChild(canvasB);
+
+  let activeCanvas = canvasA;
+  let hiddenCanvas = canvasB;
 
   let pdfDoc = null;
   let pageNum = 1;
   let pageRendering = false;
   let pageNumPending = null;
 
-  // Fetch and load PDF document
   pdfjsLib
     .getDocument(PDF_FILE_PATH)
     .promise.then((pdf) => {
@@ -44,18 +43,35 @@ document.addEventListener("DOMContentLoaded", () => {
       loadingMsg.textContent = `Error loading '${PDF_FILE_PATH}'. Make sure the file exists in the directory.`;
     });
 
-  // Render a specific page on the offscreen canvas, then swap seamlessly
   function renderPage(num) {
     pageRendering = true;
 
     pdfDoc.getPage(num).then((page) => {
-      const viewport = page.getViewport({ scale: 2.0 });
+      // Get unscaled viewport to determine aspect ratio
+      const unscaledViewport = page.getViewport({ scale: 1.0 });
 
-      // Render onto the hidden offscreen canvas first
-      offscreenCanvas.height = viewport.height;
-      offscreenCanvas.width = viewport.width;
+      // Calculate container bounds (accounting for device pixel ratio for crisp rendering)
+      const containerWidth = stage.clientWidth;
+      const containerHeight = stage.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
 
-      const ctx = offscreenCanvas.getContext("2d");
+      // Fit inside container bounds while maintaining aspect ratio
+      const scaleX = containerWidth / unscaledViewport.width;
+      const scaleY = containerHeight / unscaledViewport.height;
+      const fitScale = Math.min(scaleX, scaleY);
+
+      // Final high-DPI viewport
+      const viewport = page.getViewport({ scale: fitScale * dpr });
+
+      // Set internal pixel buffer size (crisp graphics)
+      hiddenCanvas.width = Math.floor(viewport.width);
+      hiddenCanvas.height = Math.floor(viewport.height);
+
+      // Set CSS display size to fit container exactly
+      hiddenCanvas.style.width = `${Math.floor(viewport.width / dpr)}px`;
+      hiddenCanvas.style.height = `${Math.floor(viewport.height / dpr)}px`;
+
+      const ctx = hiddenCanvas.getContext("2d");
       const renderContext = {
         canvasContext: ctx,
         viewport: viewport,
@@ -64,12 +80,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const renderTask = page.render(renderContext);
 
       renderTask.promise.then(() => {
-        // Swap the canvases once rendering is 100% complete
-        activeCanvas.width = offscreenCanvas.width;
-        activeCanvas.height = offscreenCanvas.height;
+        hiddenCanvas.classList.add("active");
+        activeCanvas.classList.remove("active");
 
-        const activeCtx = activeCanvas.getContext("2d");
-        activeCtx.drawImage(offscreenCanvas, 0, 0);
+        const temp = activeCanvas;
+        activeCanvas = hiddenCanvas;
+        hiddenCanvas = temp;
 
         pageRendering = false;
 
@@ -97,7 +113,17 @@ document.addEventListener("DOMContentLoaded", () => {
     nextBtn.disabled = !pdfDoc || pageNum >= pdfDoc.numPages;
   }
 
-  // Navigation Button Handlers
+  // Handle window resizing dynamically
+  let resizeTimeout;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      if (pdfDoc && !pageRendering) {
+        renderPage(pageNum);
+      }
+    }, 200);
+  });
+
   prevBtn.addEventListener("click", () => {
     if (pageNum <= 1) return;
     pageNum--;
@@ -110,7 +136,6 @@ document.addEventListener("DOMContentLoaded", () => {
     queueRenderPage(pageNum);
   });
 
-  // Keyboard Arrow Navigation
   document.addEventListener("keydown", (e) => {
     if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
       if (pageNum > 1) {
