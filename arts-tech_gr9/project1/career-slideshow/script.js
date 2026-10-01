@@ -1,18 +1,27 @@
 document.addEventListener("DOMContentLoaded", () => {
   // CONFIGURATION: Set your local PDF file path here
-  const PDF_FILE_PATH = "slideshow.pdf";
+  const PDF_FILE_PATH = "presentation.pdf";
 
   // Configure PDF.js worker location
   pdfjsLib.GlobalWorkerOptions.workerSrc =
     "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-  const canvas = document.getElementById("pdf-canvas");
-  const ctx = canvas.getContext("2d");
+  const stage = document.getElementById("slide-stage");
   const loadingMsg = document.getElementById("loading-msg");
   const prevBtn = document.getElementById("prev-btn");
   const nextBtn = document.getElementById("next-btn");
   const currentSlideEl = document.getElementById("current-slide");
   const totalSlidesEl = document.getElementById("total-slides");
+
+  // Create two canvases for seamless double-buffering
+  let activeCanvas = document.createElement("canvas");
+  let offscreenCanvas = document.createElement("canvas");
+
+  activeCanvas.id = "pdf-canvas";
+  offscreenCanvas.style.display = "none";
+
+  stage.appendChild(activeCanvas);
+  stage.appendChild(offscreenCanvas);
 
   let pdfDoc = null;
   let pageNum = 1;
@@ -26,27 +35,27 @@ document.addEventListener("DOMContentLoaded", () => {
       pdfDoc = pdf;
       totalSlidesEl.textContent = pdfDoc.numPages;
       loadingMsg.style.display = "none";
-      canvas.style.display = "block";
 
       renderPage(pageNum);
     })
     .catch((err) => {
       console.error(err);
       loadingMsg.style.color = "#ef4444";
-      loadingMsg.textContent = `Error loading '${PDF_FILE_PATH}'. Make sure the file exists in the folder.`;
+      loadingMsg.textContent = `Error loading '${PDF_FILE_PATH}'. Make sure the file exists in the directory.`;
     });
 
-  // Render a specific page/slide on the canvas
+  // Render a specific page on the offscreen canvas, then swap seamlessly
   function renderPage(num) {
     pageRendering = true;
 
     pdfDoc.getPage(num).then((page) => {
-      // Calculate scale to match crisp device retina pixels
       const viewport = page.getViewport({ scale: 2.0 });
 
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
+      // Render onto the hidden offscreen canvas first
+      offscreenCanvas.height = viewport.height;
+      offscreenCanvas.width = viewport.width;
 
+      const ctx = offscreenCanvas.getContext("2d");
       const renderContext = {
         canvasContext: ctx,
         viewport: viewport,
@@ -55,6 +64,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const renderTask = page.render(renderContext);
 
       renderTask.promise.then(() => {
+        // Swap the canvases once rendering is 100% complete
+        activeCanvas.width = offscreenCanvas.width;
+        activeCanvas.height = offscreenCanvas.height;
+
+        const activeCtx = activeCanvas.getContext("2d");
+        activeCtx.drawImage(offscreenCanvas, 0, 0);
+
         pageRendering = false;
 
         if (pageNumPending !== null) {
