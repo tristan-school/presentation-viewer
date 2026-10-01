@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-  // CONFIGURATION: Set the filename of your local presentation here
+  // Set the filename of your local PPTX file here
   const PPTX_FILE_PATH = "presentation.pptx";
 
   const slideStage = document.getElementById("slide-stage");
@@ -11,7 +11,6 @@ document.addEventListener("DOMContentLoaded", () => {
   let slides = [];
   let currentSlideIndex = 0;
 
-  // Load the presentation from local directory on page load
   loadLocalPresentation(PPTX_FILE_PATH);
 
   async function loadLocalPresentation(filePath) {
@@ -24,12 +23,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const buffer = await response.arrayBuffer();
       const zip = await JSZip.loadAsync(buffer);
 
-      // Extract all slide XML files from the PPTX zip structure
       const slideFiles = Object.keys(zip.files).filter((fileName) =>
         fileName.match(/^ppt\/slides\/slide\d+\.xml$/)
       );
 
-      // Sort slides numerically (slide1.xml, slide2.xml, etc.)
       slideFiles.sort((a, b) => {
         const numA = parseInt(a.match(/\d+/)[0], 10);
         const numB = parseInt(b.match(/\d+/)[0], 10);
@@ -37,11 +34,10 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       if (slideFiles.length === 0) {
-        showError("No slides found in the presentation file.");
+        showError("No slides found in presentation.");
         return;
       }
 
-      // Parse XML content for each slide
       slides = [];
       for (let i = 0; i < slideFiles.length; i++) {
         const xmlText = await zip.files[slideFiles[i]].async("string");
@@ -57,12 +53,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Parse raw slide XML and construct clean HTML elements
   function parseSlideXML(xmlString, slideNum) {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(xmlString, "text/xml");
     
-    // Extract text nodes <a:t>
     const textNodes = xmlDoc.getElementsByTagName("a:t");
     let textParagraphs = [];
 
@@ -123,7 +117,6 @@ document.addEventListener("DOMContentLoaded", () => {
     nextBtn.disabled = currentSlideIndex >= slides.length - 1 || slides.length === 0;
   }
 
-  // Navigation Button Handlers
   prevBtn.addEventListener("click", () => {
     if (currentSlideIndex > 0) showSlide(currentSlideIndex - 1);
   });
@@ -132,7 +125,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (currentSlideIndex < slides.length - 1) showSlide(currentSlideIndex + 1);
   });
 
-  // Keyboard Arrow Key Navigation
   document.addEventListener("keydown", (e) => {
     if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
       prevBtn.click();
